@@ -16,7 +16,7 @@ from nltk.collocations import BigramCollocationFinder, QuadgramCollocationFinder
 import matplotlib
 import matplotlib.pyplot as plt
 
-from NLP.replacers import RegexpReplacer, WordReplacer
+from mnlpwp.replacers import RegexpReplacer, WordReplacer
 
 
 def test_sent_tokenize():
