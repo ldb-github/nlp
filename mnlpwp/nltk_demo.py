@@ -6,12 +6,13 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.tokenize import TreebankWordTokenizer, WordPunctTokenizer, WhitespaceTokenizer
 from nltk.tokenize import RegexpTokenizer
 from nltk.tokenize.util import spans_to_relative, string_span_tokenize
-from nltk.corpus import stopwords, gutenberg, alpino, webtext
+from nltk.corpus import stopwords, gutenberg, alpino, webtext, brown
 from nltk.probability import FreqDist
 from nltk.metrics import edit_distance, jaccard_distance, binary_distance, masi_distance
 from nltk.metrics import BigramAssocMeasures
-from nltk.util import ngrams
+from nltk.util import ngrams, unique_list
 from nltk.collocations import BigramCollocationFinder, QuadgramCollocationFinder
+from nltk.tag import HiddenMarkovModelTrainer
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -181,6 +182,65 @@ def test_ngram():
         print(fourgram, freq)
 
 
+def test_HMM():
+    """隐马尔可夫模型"""
+    corpus = brown.tagged_sents(categories='adventure')[:700]
+    tag_set = unique_list(tag for sent in corpus for word, tag in sent)
+    symbols = unique_list(word for sent in corpus for word, tag in sent)
+    trainer = HiddenMarkovModelTrainer(tag_set, symbols)
+    train_corpus = []
+    test_corpus = []
+    for i in range(len(corpus)):
+        if i % 10:
+            train_corpus += [corpus[i]]
+        else:
+            test_corpus += [corpus[i]]
+
+    def train_and_test(est):
+        hmm = trainer.train_supervised(train_corpus, estimator=est)
+        print('%.2f%%' % (100 * hmm.evaluate(test_corpus)))
+
+    def lidstone(gamma):
+        return lambda fd, bins: nltk.LidstoneProbDist(fd, gamma, bins)
+
+    train_and_test(nltk.WittenBellProbDist)
+    train_and_test(nltk.MLEProbDist)
+    train_and_test(nltk.LaplaceProbDist)
+    train_and_test(nltk.ELEProbDist)
+    train_and_test(lidstone(0))  # nltk.MLEProbDist
+    train_and_test(lidstone(0.1))
+    train_and_test(lidstone(0.5))  # nltk.ELEProbDist
+    train_and_test(lidstone(1.0))  # nltk.LaplaceProbDist
+
+
+def test_smoothing_laplace():
+    """Laplace平滑 即 加1平滑"""
+    corpus = '<s> hello how are you doing ? Hope you find the book interesting. </s>'.split()
+    sentence = '<s>how are you doing </s>'.split()
+    vocabulary = set(corpus)
+    c_bigrams = nltk.bigrams(corpus)
+    c_bigrams_list = list(c_bigrams)
+    print(c_bigrams_list)
+    cfd = nltk.ConditionalFreqDist(c_bigrams_list)
+    s_bigrams = nltk.bigrams(sentence)
+    print(list(s_bigrams))
+    print('cfd[a][b]', [cfd[a][b] for a, b in nltk.bigrams(sentence)])
+    print('cfd[a].N()', [cfd[a].N() for a, b in nltk.bigrams(sentence)])
+    print('cfd[a].freq(b)', [cfd[a].freq(b) for a, b in nltk.bigrams(sentence)])
+    print('1 + cfd[a][b]', [1 + cfd[a][b] for a, b in nltk.bigrams(sentence)])
+    print('vocabulary', [len(vocabulary) + cfd[a].N() for a, b in nltk.bigrams(sentence)])
+    # 使用laplace平滑计算概率
+    print('cfd[a][b]) / len(vocabulary)', [1.0 * (1 + cfd[a][b]) / (len(vocabulary) + cfd[a].N()) for a, b in nltk.bigrams(sentence)])
+
+    # 最大似然概率分布 没有加入平滑
+    cpd_mle = nltk.ConditionalProbDist(cfd, nltk.MLEProbDist, bins=len(vocabulary))
+    print('cpd_mle[a].prob(b)', [cpd_mle[a].prob(b) for a, b in nltk.bigrams(sentence)])
+
+    # 直接使用库进行带有laplace平滑的计算概率
+    cpd_laplace = nltk.ConditionalProbDist(cfd, nltk.LaplaceProbDist, bins=len(vocabulary))
+    print('cpd_laplace[a].prob(b)', [cpd_laplace[a].prob(b) for a, b in nltk.bigrams(sentence)])
+
+
 def main():
     # test_sent_tokenize()
     # test_word_tokenize()
@@ -194,7 +254,9 @@ def main():
     # test_word_replacer()
     # test_zipf()
     # test_similarity()
-    test_ngram()
+    # test_ngram()
+    test_HMM()
+    # test_smoothing_laplace()
 
 
 if __name__ == '__main__':
