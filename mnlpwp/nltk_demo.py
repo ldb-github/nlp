@@ -221,22 +221,23 @@ def test_smoothing_laplace():
     c_bigrams = nltk.bigrams(corpus)
     c_bigrams_list = list(c_bigrams)
     print(c_bigrams_list)
-    cfd = nltk.ConditionalFreqDist(c_bigrams_list)
+    cfd = nltk.ConditionalFreqDist(c_bigrams_list)  # 条件频率分布
     s_bigrams = nltk.bigrams(sentence)
     print(list(s_bigrams))
     print('cfd[a][b]', [cfd[a][b] for a, b in nltk.bigrams(sentence)])
     print('cfd[a].N()', [cfd[a].N() for a, b in nltk.bigrams(sentence)])
     print('cfd[a].freq(b)', [cfd[a].freq(b) for a, b in nltk.bigrams(sentence)])
     print('1 + cfd[a][b]', [1 + cfd[a][b] for a, b in nltk.bigrams(sentence)])
+    # 计算概率分布
     print('vocabulary', [len(vocabulary) + cfd[a].N() for a, b in nltk.bigrams(sentence)])
-    # 使用laplace平滑计算概率
+    # 使用laplace平滑计算概率分布
     print('cfd[a][b]) / len(vocabulary)', [1.0 * (1 + cfd[a][b]) / (len(vocabulary) + cfd[a].N()) for a, b in nltk.bigrams(sentence)])
 
     # 最大似然概率分布 没有加入平滑
     cpd_mle = nltk.ConditionalProbDist(cfd, nltk.MLEProbDist, bins=len(vocabulary))
     print('cpd_mle[a].prob(b)', [cpd_mle[a].prob(b) for a, b in nltk.bigrams(sentence)])
 
-    # 直接使用库进行带有laplace平滑的计算概率
+    # 直接使用库进行带有laplace平滑的计算概率分布
     cpd_laplace = nltk.ConditionalProbDist(cfd, nltk.LaplaceProbDist, bins=len(vocabulary))
     print('cpd_laplace[a].prob(b)', [cpd_laplace[a].prob(b) for a, b in nltk.bigrams(sentence)])
 
